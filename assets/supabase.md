@@ -3,43 +3,68 @@
 ## Overview
 The backend uses Supabase both for authentication (sign up/login) and as a persistent database for storing user tasks.
 
+### Database Tables and Schema
+
+#### **Users Table**
+- `id`: uuid, primary key, default `gen_random_uuid()`, matches Supabase Auth user id
+- `email`: text, required
+- `password_hash`: text, required
+- `name`: text, optional
+- `created_at`: timestamp, default now()
+- **RLS enabled:** Users can only select/update their own row (`auth.uid() = id`)
+
+#### **Tasks Table**
+| Column       | Type      | Required | Default           | Description                            |
+|--------------|-----------|----------|-------------------|----------------------------------------|
+| id           | uuid      | YES      | gen_random_uuid() | Task unique id                         |
+| user_id      | uuid      | YES      |                   | Owner (auth.uid from Supabase)         |
+| title        | text      | YES      |                   | Task title                             |
+| description  | text      | NO       |                   | Optional description                   |
+| completed    | boolean   | YES      | false             | Completion status                      |
+| created_at   | timestamp | YES      | now()             | Creation timestamp                     |
+| updated_at   | timestamp | YES      | now()             | Last update timestamp                  |
+
+- 'updated_at' field automatically updates on any change (trigger installed)
+- RLS enabled: Only owner (auth.uid() = user_id) can access/modify a task
+
 ## Authentication
 
-- `/signup` and `/login` endpoints utilize Supabase Auth REST API.
-- JWT tokens issued by Supabase are validated for protected routes.
+- `/signup` and `/login` endpoints use Supabase Auth REST API.
+- JWT tokens issued by Supabase are validated for protected routes via `/auth/v1/user`.
 - All authenticated endpoints require an `Authorization: Bearer <jwt>` header.
 
-## Task Storage
-
-- Tasks are stored in a Supabase table named `tasks` with columns:
-    - `id`: integer, primary key
-    - `user_id`: uuid, required (corresponds to Supabase auth user id)
-    - `title`: text, required
-    - `description`: text, optional
-    - `completed`: boolean, default false
-    - `created_at`/`updated_at`: timestamps
-
-- Each operation (`insert`, `update`, `delete`, `select`) is scoped to the authenticated user's `user_id`.
-
-## Environment Variables Required
-
+## Backend Environment Variables Required
+These **must be set in your backend .env**:
 - `SUPABASE_URL`: The Supabase project URL
 - `SUPABASE_KEY`: Supabase service role key
-- `SUPABASE_ANON_KEY`: (optional, defaults to SUPABASE_KEY) - anonymous/public API key
-- `SITE_URL`: The frontend base URL for email link redirect (used in signup)
+- `SUPABASE_ANON_KEY`: (Optional. Defaults to SUPABASE_KEY) - anonymous/public API key
+- `SITE_URL`: The frontend base URL for email link redirects during sign up/login
 
-These variables must be set in the environment for the backend to work correctly.
+> **NOTE:** As of now, the backend .env does **not** contain these variables. Please add them:
 
-## Supabase Python Client
+Example:
+```
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=YOUR-SUPABASE-SERVICE-ROLE-KEY
+SUPABASE_ANON_KEY=YOUR-SUPABASE-ANON-KEY
+SITE_URL=http://localhost:3000/
+```
 
-- The backend uses the `supabase` Python client library to interact with project tables.
+See also: [Supabase Auth API Reference](https://supabase.com/docs/reference/auth/sign-up), [Supabase Python Client](https://github.com/supabase-community/supabase-py)
 
-## Setup Notes
+## Additional Notes
 
-1. In your Supabase instance, create the `tasks` table with appropriate columns/row-level security (RLS) so users can only access their own tasks.
-2. Set the required environment variables (above) on deployment.
+- The backend uses the [supabase-py](https://github.com/supabase-community/supabase-py) client library. Ensure it is listed in requirements.
+- Users must set environment variables before starting the backend or API functionality will not work.
 
-## References
+### RLS SQL (for reference)
 
-- [Supabase Auth API Reference](https://supabase.com/docs/reference/auth/sign-up)
-- [Supabase Python Client](https://github.com/supabase-community/supabase-py)
+```
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users access their own profile" ON users;
+CREATE POLICY "Users access their own profile" ON users USING (auth.uid() = id);
+
+ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Users can access their tasks only" ON tasks;
+CREATE POLICY "Users can access their tasks only" ON tasks USING (auth.uid() = user_id);
+```
