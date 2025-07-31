@@ -26,9 +26,10 @@ pydantic_core==2.33.1
 pyflakes==3.3.2
 Pygments==2.19.1
 pytest==8.3.5
-python-dotenv==1.1.0
+python-dotenv>=1.0.0
 python-multipart==0.0.20
 PyYAML==6.0.2
+requests>=2.31.0
 rich==14.0.0
 rich-toolkit==0.14.1
 shellingham==1.5.4
@@ -41,5 +42,4 @@ uvicorn==0.34.0
 uvloop==0.21.0
 watchfiles==1.0.5
 websockets==15.0.1
-python-dotenv>=1.0.0
-supabase>=2.0.0
+supabase==2.2.0
